@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Merge data/b*.json + data/p*.json into a single data.js and validate it."""
 import glob
+import hashlib
 import json
 import math
 import pathlib
 import random
+import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent
@@ -150,6 +152,24 @@ def validate(books):
     return errors, warnings, total
 
 
+
+def fingerprint_assets():
+    """Point index.html at data.js / app.css / app.js with a content hash so
+    browsers never keep serving a stale question bank after a rebuild."""
+    html_path = ROOT / "index.html"
+    html = html_path.read_text(encoding="utf-8")
+
+    for asset in ("data.js", "assets/app.css", "assets/app.js"):
+        path = ROOT / asset
+        if not path.exists():
+            continue
+        digest = hashlib.sha1(path.read_bytes()).hexdigest()[:8]
+        pattern = re.compile(r'(?P<pre>(?:src|href)=")' + re.escape(asset) + r'(?:\?v=[0-9a-f]+)?(?P<post>")')
+        html = pattern.sub(lambda m: m.group("pre") + asset + "?v=" + digest + m.group("post"), html)
+
+    html_path.write_text(html, encoding="utf-8")
+
+
 def main():
     books = load()
     dist = balance_answers(books)
@@ -176,6 +196,8 @@ def main():
     )
     print(f"OK  {len(books)} books, {total} questions -> data.js ({out.stat().st_size / 1024:.0f} KB)")
     print(f"答案分佈 A/B/C/D = {'/'.join(map(str, dist))}")
+    fingerprint_assets()
+    print("index.html 已更新資源指紋")
     for b in books:
         print(f"  {b['n']:>2} {b['name']:<8} {len(b['q']):>2}")
     return 0
