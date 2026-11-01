@@ -40,7 +40,7 @@ Each file `bNN.json` (NN = 01..66) contains ONE Bible book object, UTF-8, valid 
 2. Prefer concrete, checkable facts: names, numbers, places, who said/did what, order of events, list contents.
 3. `ref` must be the verse(s) that actually contain the fact. If unsure of the exact verse, cite the chapter that clearly contains it (e.g. `撒母耳記上 17`) rather than inventing a precise verse number.
 4. Distractors must be plausible but clearly wrong per the text (e.g. other real biblical names, nearby numbers). Never make two options defensible.
-5. Vary the position of the correct answer across 0,1,2,3 — do not put most answers at the same index.
+5. Vary the position of the correct answer across 0,1,2,3 — do not put most answers at the same index. `build_data.py` swaps the correct option into the least-used slot so A/B/C/D each occur equally often (counts differ by at most 1), globally and inside each book. Wording does not change.
 6. Vary question phrasing: 誰／什麼／哪裡／為何／多少／哪一卷／排列順序 等. Avoid starting every question the same way.
 7. Do not reuse the same question across books (e.g. a 四福音 event asked once only in its primary Gospel; other Gospels may ask about their own unique material).
 8. Keep questions answerable by someone who has read the book — no trivia about modern editions or chapter divisions alone.

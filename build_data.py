@@ -141,6 +141,17 @@ def validate(books):
                 errors.append(f"{tag}: duplicate question text")
             texts.add(q["q"])
 
+        slot = [sum(1 for q in b["q"] if q["a"] == i) for i in range(4)]
+        if max(slot) - min(slot) > 1:
+            errors.append(f"book {b['n']} {b['name']}: answer slots {slot} differ by more than 1")
+
+    slot = [0, 0, 0, 0]
+    for b in books:
+        for q in b["q"]:
+            slot[q["a"]] += 1
+    if slot and max(slot) - min(slot) > 1:
+        errors.append(f"answer slots {slot} are not nearly equal")
+
     # cross-book duplicate questions
     allq = {}
     for b in books:
@@ -178,9 +189,21 @@ def fingerprint_assets():
     html_path.write_text(html, encoding="utf-8")
 
 
+def slot_distribution(books):
+    total = [0, 0, 0, 0]
+    for b in books:
+        for q in b["q"]:
+            total[q["a"]] += 1
+    return total
+
+
 def main():
     books = load()
-    dist = balance_answers(books)
+    # Source files are already ordered so A/B/C/D stay within one question of
+    # each other. Re-shuffle only if a later edit bunches the correct answer.
+    dist = slot_distribution(books)
+    if max(dist) - min(dist) > 1:
+        dist = balance_answers(books)
     errors, warnings, total = validate(books)
 
     for w in warnings[:20]:
