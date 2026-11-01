@@ -11,6 +11,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent
 DATA = ROOT / "data"
+DATA_OUT = ROOT / "data.js"
 
 EXPECTED = [
     "創世記", "出埃及記", "利未記", "民數記", "申命記", "約書亞記", "士師記", "路得記",
@@ -166,6 +167,13 @@ def fingerprint_assets():
         digest = hashlib.sha1(path.read_bytes()).hexdigest()[:8]
         pattern = re.compile(r'(?P<pre>(?:src|href)=")' + re.escape(asset) + r'(?:\?v=[0-9a-f]+)?(?P<post>")')
         html = pattern.sub(lambda m: m.group("pre") + asset + "?v=" + digest + m.group("post"), html)
+
+    if DATA_OUT.exists():
+        html = re.sub(
+            r'(<span class="ver"[^>]*>)[^<]*(</span>)',
+            lambda m: m.group(1) + hashlib.sha1(DATA_OUT.read_bytes()).hexdigest()[:8] + m.group(2),
+            html,
+        )
 
     html_path.write_text(html, encoding="utf-8")
 
