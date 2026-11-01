@@ -2,7 +2,9 @@
 """Merge data/b*.json + data/p*.json into a single data.js and validate it."""
 import glob
 import json
+import math
 import pathlib
+import random
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent
@@ -54,6 +56,53 @@ def load():
     return [books[k] for k in sorted(books)]
 
 
+
+def balance_answers(books, seed=20261101):
+    """Re-order each question's options so the correct answer is spread evenly
+    over A/B/C/D — per book and overall. Deterministic for a fixed seed."""
+    rng = random.Random(seed)
+    total = [0, 0, 0, 0]
+
+    for b in books:
+        n = len(b["q"])
+        quota = math.ceil(n / 4)
+        per_book = [0, 0, 0, 0]
+        prev = -1
+
+        for q in b["q"]:
+            opts = q["o"]
+            correct = opts[q["a"]]
+
+            cand = [i for i in range(4) if per_book[i] < quota and i != prev]
+            if not cand:
+                cand = [i for i in range(4) if per_book[i] < quota] or [0, 1, 2, 3]
+            low = min(total[i] for i in cand)
+            cand = [i for i in cand if total[i] == low]
+            target = rng.choice(sorted(cand))
+
+            rest = [o for j, o in enumerate(opts) if j != q["a"]]
+            if rng.random() < 0.5:
+                rest.reverse()
+
+            new = []
+            k = 0
+            for i in range(4):
+                if i == target:
+                    new.append(correct)
+                else:
+                    new.append(rest[k])
+                    k += 1
+            assert set(new) == set(opts), "option set changed while balancing"
+
+            q["o"] = new
+            q["a"] = target
+            per_book[target] += 1
+            total[target] += 1
+            prev = target
+
+    return total
+
+
 def validate(books):
     errors, warnings = [], []
     seen_n = {b["n"] for b in books}
@@ -103,6 +152,7 @@ def validate(books):
 
 def main():
     books = load()
+    dist = balance_answers(books)
     errors, warnings, total = validate(books)
 
     for w in warnings[:20]:
@@ -125,6 +175,7 @@ def main():
         encoding="utf-8",
     )
     print(f"OK  {len(books)} books, {total} questions -> data.js ({out.stat().st_size / 1024:.0f} KB)")
+    print(f"答案分佈 A/B/C/D = {'/'.join(map(str, dist))}")
     for b in books:
         print(f"  {b['n']:>2} {b['name']:<8} {len(b['q']):>2}")
     return 0
