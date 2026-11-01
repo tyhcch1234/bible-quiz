@@ -371,7 +371,6 @@
           "<p>用時 " + mm + " 分 " + ss + " 秒 · 本節答對 " + right + " 題，答錯 " + (total - right) + " 題</p>" +
           '<div class="actions" style="justify-content:center">' +
             '<button class="btn primary" id="again">再做一次</button>' +
-            (bookWrongCount(ses.book || { n: -1, q: [] }) ? "" : "") +
             '<button class="btn" id="reviewWrong"' + (wrongItems.length ? "" : " disabled") + ">重練本節錯題</button>" +
             '<button class="btn ghost" id="backHome">返回書卷</button>' +
           "</div>" +
@@ -461,6 +460,12 @@
   }
 
   /* ---------------- boot ---------------- */
+  function on(sel, ev, fn) {
+    var n = typeof sel === "string" ? $(sel) : sel;
+    if (n) n.addEventListener(ev, fn);
+    return n;
+  }
+
   function boot() {
     applyTheme();
     renderSidebar();
@@ -469,8 +474,12 @@
       return;
     }
     renderHome();
+    wireChrome();
+  }
 
-    $("#search").addEventListener("input", renderSidebar);
+  function wireChrome() {
+    on("#search", "input", renderSidebar);
+
     document.querySelectorAll(".tab").forEach(function (tab) {
       tab.addEventListener("click", function () {
         document.querySelectorAll(".tab").forEach(function (t) { t.setAttribute("aria-selected", "false"); });
@@ -479,32 +488,49 @@
         renderSidebar();
       });
     });
-    $("#theme").addEventListener("click", function () {
+
+    function cycleTheme() {
       state.theme = state.theme === "auto" ? "light" : state.theme === "light" ? "dark" : "auto";
-      save(); applyTheme();
+      save();
+      applyTheme();
       toast("主題：" + ({ auto: "跟隨系統", light: "淺色", dark: "深色" })[state.theme]);
+    }
+    on("#theme", "click", cycleTheme);
+    on("#mobileTheme", "click", cycleTheme);
+
+    on("#menu", "click", function (ev) {
+      ev.stopPropagation();
+      var side = $("#sidebar");
+      if (!side) return;
+      side.classList.toggle("open");
+      var sc = $("#scrim");
+      if (sc) sc.classList.toggle("on", side.classList.contains("open"));
     });
-    $("#menu").addEventListener("click", function () {
-      $("#sidebar").classList.toggle("open");
-      $("#scrim").classList.toggle("on");
-    });
-    $("#scrim").addEventListener("click", closeSidebar);
-    $("#homeBtn").addEventListener("click", function () { closeSidebar(); renderHome(); });
+
+    on("#scrim", "click", closeSidebar);
+    on("#homeBtn", "click", function () { closeSidebar(); renderHome(); });
+
+    if ($("#bookTotal")) $("#bookTotal").textContent = DATA.length;
+    if ($("#qTotal")) $("#qTotal").textContent = DATA.reduce(function (s, b) { return s + b.q.length; }, 0);
 
     document.addEventListener("keydown", function (ev) {
       if (!ses) return;
-      if (ev.target && /input|textarea/i.test(ev.target.tagName)) return;
+      var tag = ev.target && ev.target.tagName;
+      if (tag && /^(INPUT|TEXTAREA|SELECT)$/.test(tag)) return;
       if (ev.key >= "1" && ev.key <= "4") {
-        var i = Number(ev.key) - 1;
         var item = ses.items[ses.i];
-        if (i < item.book.q[item.qi].o.length) answer(i);
+        var idx = Number(ev.key) - 1;
+        if (item && idx < item.book.q[item.qi].o.length) {
+          ev.preventDefault();
+          answer(idx);
+        }
       } else if (ev.key === "Enter" || ev.key === " ") {
-        if (ses.picked[ses.i] !== undefined) { ev.preventDefault(); next(); }
+        if (ses.picked[ses.i] !== undefined) {
+          ev.preventDefault();
+          next();
+        }
       }
     });
-
-    $("#bookTotal").textContent = DATA.length;
-    $("#qTotal").textContent = DATA.reduce(function (s, b) { return s + b.q.length; }, 0);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
